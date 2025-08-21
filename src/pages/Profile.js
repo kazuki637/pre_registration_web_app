@@ -164,6 +164,7 @@ const Profile = () => {
             margin="normal"
             required
             helperText="*必須項目"
+            FormHelperTextProps={{ sx: { color: '#e74c3c' } }}
           />
 
           <Autocomplete
@@ -184,6 +185,7 @@ const Profile = () => {
                 margin="normal"
                 required
                 helperText="*必須項目"
+                FormHelperTextProps={{ sx: { color: '#e74c3c' } }}
               />
             )}
           />
@@ -199,7 +201,7 @@ const Profile = () => {
                 <MenuItem key={g} value={g}>{g}</MenuItem>
               ))}
             </Select>
-            <FormHelperText>*必須項目</FormHelperText>
+            <FormHelperText sx={{ color: '#e74c3c' }}>*必須項目</FormHelperText>
           </FormControl>
 
           <FormControl fullWidth margin="normal" required>
@@ -213,8 +215,10 @@ const Profile = () => {
                 <MenuItem key={g} value={g}>{g}</MenuItem>
               ))}
             </Select>
-            <FormHelperText>*必須項目</FormHelperText>
+            <FormHelperText sx={{ color: '#e74c3c' }}>*必須項目</FormHelperText>
           </FormControl>
+
+          <Box sx={{ mb: 2 }} />
 
           <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ja}>
             <DatePicker
@@ -228,11 +232,11 @@ const Profile = () => {
                   fullWidth
                   margin="normal"
                   required
-                  helperText="*必須項目"
                 />
               )}
             />
           </LocalizationProvider>
+          <FormHelperText sx={{ color: '#e74c3c', mt: 1, ml: 2 }}>*必須項目</FormHelperText>
 
           <Box sx={{ mt: 4, textAlign: 'center' }}>
             <Button

@@ -20,7 +20,7 @@ import {
   RadioGroup
 } from '@mui/material';
 import { auth, db } from '../firebaseConfig';
-import { doc, getDoc, addDoc, collection, setDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { doc, getDoc, addDoc, collection, setDoc, updateDoc, arrayUnion, query, where, getDocs } from 'firebase/firestore';
 import { useNavigate } from 'react-router-dom';
 
 const FREQUENCIES = [
@@ -100,6 +100,11 @@ const Circle = () => {
   const [uploading, setUploading] = useState(false);
   const [circleType, setCircleType] = useState('学内サークル');
   const [error, setError] = useState('');
+  
+  // 既存サークル情報の状態
+  const [existingCircle, setExistingCircle] = useState(null);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -113,10 +118,46 @@ const Circle = () => {
           setContactInfo(user.email || '');
           setRepresentativeName(userData.name || '');
         }
+        
+        // ユーザーの既存サークル情報を取得
+        await checkExistingCircle(user.uid);
       }
+      setLoading(false);
     };
     fetchUserData();
   }, []);
+
+  // ユーザーの既存サークル情報をチェック
+  const checkExistingCircle = async (userId) => {
+    try {
+      const circlesRef = collection(db, 'circles');
+      const q = query(circlesRef, where('leaderId', '==', userId));
+      const querySnapshot = await getDocs(q);
+      
+      if (!querySnapshot.empty) {
+        const circleDoc = querySnapshot.docs[0];
+        const circleData = circleDoc.data();
+        setExistingCircle({
+          id: circleDoc.id,
+          ...circleData
+        });
+        setIsEditMode(true);
+        
+        // 既存データをフォームに設定
+        setCircleName(circleData.name || '');
+        setFeatures(circleData.features || []);
+        setFrequency(circleData.frequency || '');
+        setActivityDays(circleData.activityDays || []);
+        setGenderratio(circleData.genderratio || '');
+        setGenre(circleData.genre || '');
+        setMembers(circleData.members || '');
+        setCircleType(circleData.circleType || '学内サークル');
+        setIsRecruiting(circleData.welcome?.isRecruiting || false);
+      }
+    } catch (error) {
+      console.error('既存サークル情報の取得エラー:', error);
+    }
+  };
 
   const handleFeatureToggle = (feature) => {
     setFeatures((prev) =>
@@ -130,7 +171,7 @@ const Circle = () => {
     );
   };
 
-  const handleRegister = async () => {
+  const handleSubmit = async () => {
     // 必須項目バリデーション
     if (!circleName || !universityName || !representativeName || !contactInfo || !genre || features.length === 0 || !frequency || !members || !genderratio) {
       setError('必須項目をすべて入力してください。');
@@ -147,43 +188,67 @@ const Circle = () => {
         return;
       }
 
-      // サークルを登録
-      const circleDocRef = await addDoc(collection(db, 'circles'), {
-        name: circleName,
-        universityName,
-        features,
-        frequency,
-        activityDays,
-        genderratio,
-        genre,
-        members,
-        contactInfo,
-        circleType,
-        welcome: {
-          isRecruiting,
-        },
-        createdAt: new Date(),
-        leaderId: user.uid,
-        leaderName: representativeName,
-      });
+      if (isEditMode && existingCircle) {
+        // 既存サークルの更新
+        const circleDocRef = doc(db, 'circles', existingCircle.id);
+        await updateDoc(circleDocRef, {
+          name: circleName,
+          universityName,
+          features,
+          frequency,
+          activityDays,
+          genderratio,
+          genre,
+          members,
+          contactInfo,
+          circleType,
+          welcome: {
+            isRecruiting,
+          },
+          updatedAt: new Date(),
+        });
 
-      // 作成者をmembersサブコレクションに追加（代表者として）
-      await setDoc(doc(db, 'circles', circleDocRef.id, 'members', user.uid), { 
-        joinedAt: new Date(),
-        role: 'leader'
-      });
+        // 更新完了後、完了画面に遷移
+        navigate('/complete', { state: { message: 'サークル情報が正常に更新されました。' } });
+      } else {
+        // 新規サークルの登録
+        const circleDocRef = await addDoc(collection(db, 'circles'), {
+          name: circleName,
+          universityName,
+          features,
+          frequency,
+          activityDays,
+          genderratio,
+          genre,
+          members,
+          contactInfo,
+          circleType,
+          welcome: {
+            isRecruiting,
+          },
+          createdAt: new Date(),
+          leaderId: user.uid,
+          leaderName: representativeName,
+        });
 
-      // ユーザーのjoinedCircleIdsに新しいサークルIDを追加
-      const userDocRef = doc(db, 'users', user.uid);
-      await updateDoc(userDocRef, {
-        joinedCircleIds: arrayUnion(circleDocRef.id)
-      });
+        // 作成者をmembersサブコレクションに追加（代表者として）
+        await setDoc(doc(db, 'circles', circleDocRef.id, 'members', user.uid), { 
+          joinedAt: new Date(),
+          role: 'leader'
+        });
 
-      // 登録完了後、ホーム画面に遷移
-      navigate('/', { state: { message: 'サークル情報が正常に登録されました。' } });
+        // ユーザーのjoinedCircleIdsに新しいサークルIDを追加
+        const userDocRef = doc(db, 'users', user.uid);
+        await updateDoc(userDocRef, {
+          joinedCircleIds: arrayUnion(circleDocRef.id)
+        });
+
+        // 登録完了後、完了画面に遷移
+        navigate('/complete', { state: { message: 'サークル情報が正常に登録されました。' } });
+      }
     } catch (error) {
-      console.error('Error registering circle:', error);
-      setError('サークル情報の登録中にエラーが発生しました。');
+      console.error('Error saving circle:', error);
+      setError(isEditMode ? 'サークル情報の更新中にエラーが発生しました。' : 'サークル情報の登録中にエラーが発生しました。');
     } finally {
       setUploading(false);
     }
@@ -201,12 +266,31 @@ const Circle = () => {
     );
   }
 
+  if (loading) {
+    return (
+      <Container maxWidth="sm">
+        <Paper elevation={3} sx={{ p: 4, mt: 4, textAlign: 'center' }}>
+          <CircularProgress />
+          <Typography variant="body1" sx={{ mt: 2 }}>
+            読み込み中...
+          </Typography>
+        </Paper>
+      </Container>
+    );
+  }
+
   return (
     <Container maxWidth="md">
       <Paper elevation={3} sx={{ p: 4, mt: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom sx={{ textAlign: 'center', mb: 4 }}>
-          サークル登録
+          {isEditMode ? 'サークル情報編集' : 'サークル登録'}
         </Typography>
+
+        {isEditMode && (
+          <Alert severity="info" sx={{ mb: 3 }}>
+            既存のサークル情報を編集できます。変更を保存すると、更新された情報が反映されます。
+          </Alert>
+        )}
 
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
@@ -217,7 +301,7 @@ const Circle = () => {
         <Box component="form" sx={{ mt: 3 }}>
           {/* サークル種別選択 */}
           <Typography variant="h6" sx={{ mb: 2 }}>サークル種別</Typography>
-          <FormControl component="fieldset" sx={{ mb: 3 }}>
+          <FormControl component="fieldset" sx={{ mb: 3 }} required>
             <RadioGroup
               row
               value={circleType}
@@ -234,6 +318,7 @@ const Circle = () => {
                 label="インカレサークル"
               />
             </RadioGroup>
+            <FormHelperText sx={{ color: '#e74c3c' }}>*必須項目</FormHelperText>
           </FormControl>
 
           <TextField
@@ -245,6 +330,7 @@ const Circle = () => {
             required
             placeholder="サークル名を入力してください"
             helperText="*必須項目"
+            FormHelperTextProps={{ sx: { color: '#e74c3c' } }}
           />
 
           <TextField
@@ -254,7 +340,8 @@ const Circle = () => {
             margin="normal"
             required
             disabled
-            helperText="登録時に設定された大学名"
+            helperText="登録時に設定された大学名 *必須項目"
+            FormHelperTextProps={{ sx: { color: '#e74c3c' } }}
           />
 
           <TextField
@@ -264,7 +351,8 @@ const Circle = () => {
             margin="normal"
             required
             disabled
-            helperText="登録時に設定された連絡先"
+            helperText="登録時に設定された連絡先 *必須項目"
+            FormHelperTextProps={{ sx: { color: '#e74c3c' } }}
           />
 
           <FormControl fullWidth margin="normal" required>
@@ -278,7 +366,7 @@ const Circle = () => {
                 <MenuItem key={item} value={item}>{item}</MenuItem>
               ))}
             </Select>
-            <FormHelperText>*必須項目</FormHelperText>
+            <FormHelperText sx={{ color: '#e74c3c' }}>*必須項目</FormHelperText>
           </FormControl>
 
           <Typography variant="h6" sx={{ mb: 2, mt: 3 }}>特色（複数選択可）</Typography>
@@ -294,6 +382,7 @@ const Circle = () => {
               />
             ))}
           </Box>
+          <FormHelperText sx={{ mb: 2, color: '#e74c3c' }}>*必須項目（1つ以上選択してください）</FormHelperText>
 
           <FormControl fullWidth margin="normal" required>
             <InputLabel>活動頻度</InputLabel>
@@ -306,7 +395,7 @@ const Circle = () => {
                 <MenuItem key={item} value={item}>{item}</MenuItem>
               ))}
             </Select>
-            <FormHelperText>*必須項目</FormHelperText>
+            <FormHelperText sx={{ color: '#e74c3c' }}>*必須項目</FormHelperText>
           </FormControl>
 
           <Typography variant="h6" sx={{ mb: 2, mt: 3 }}>活動曜日（複数選択可）</Typography>
@@ -322,6 +411,7 @@ const Circle = () => {
               />
             ))}
           </Box>
+          <FormHelperText sx={{ mb: 2, color: '#e74c3c' }}>*必須項目（1つ以上選択してください）</FormHelperText>
 
           <FormControl fullWidth margin="normal" required>
             <InputLabel>人数</InputLabel>
@@ -334,7 +424,7 @@ const Circle = () => {
                 <MenuItem key={item} value={item}>{item}</MenuItem>
               ))}
             </Select>
-            <FormHelperText>*必須項目</FormHelperText>
+            <FormHelperText sx={{ color: '#e74c3c' }}>*必須項目</FormHelperText>
           </FormControl>
 
           <FormControl fullWidth margin="normal" required>
@@ -348,7 +438,7 @@ const Circle = () => {
                 <MenuItem key={item} value={item}>{item}</MenuItem>
               ))}
             </Select>
-            <FormHelperText>*必須項目</FormHelperText>
+            <FormHelperText sx={{ color: '#e74c3c' }}>*必須項目</FormHelperText>
           </FormControl>
 
           {/* 入会募集状況 */}
@@ -369,16 +459,17 @@ const Circle = () => {
               />
             </Box>
           </Box>
+          <FormHelperText sx={{ mb: 2, color: '#e74c3c' }}>*必須項目（入会募集の有無を選択してください）</FormHelperText>
 
           <Box sx={{ mt: 4, textAlign: 'center' }}>
             <Button
               variant="contained"
               size="large"
-              onClick={handleRegister}
+              onClick={handleSubmit}
               disabled={uploading}
               sx={{ minWidth: 200 }}
             >
-              {uploading ? <CircularProgress size={24} /> : 'サークルを登録'}
+              {uploading ? <CircularProgress size={24} /> : (isEditMode ? 'サークル情報を更新' : 'サークルを登録')}
             </Button>
           </Box>
         </Box>

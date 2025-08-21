@@ -48,25 +48,25 @@ const Header = () => {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           {currentUser ? (
             <>
-              <Button
-                color="inherit"
+              <Button 
+                color="inherit" 
                 onClick={handleProfile}
               >
                 プロフィール
               </Button>
-              <Button
-                color="inherit"
+              <Button 
+                color="inherit" 
                 onClick={handleCircle}
               >
-                サークル登録
+                サークル編集
               </Button>
-              <Button
-                color="inherit"
+              <Button 
+                color="inherit" 
                 onClick={handleLogout}
               >
                 ログアウト
               </Button>
-              <Avatar
+              <Avatar 
                 sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}
               >
                 {currentUser.email?.charAt(0).toUpperCase()}
@@ -74,11 +74,17 @@ const Header = () => {
             </>
           ) : (
             <>
-              <Button
-                color="inherit"
+              <Button 
+                color="inherit" 
+                onClick={() => navigate('/login')}
+              >
+                ログイン
+              </Button>
+              <Button 
+                color="inherit" 
                 onClick={() => navigate('/signup')}
               >
-                サインアップ
+                新規登録
               </Button>
             </>
           )}

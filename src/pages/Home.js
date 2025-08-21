@@ -47,14 +47,14 @@ const Home = () => {
           sx={{ width: 80, height: 80, mb: 2, mx: 'auto' }}
         />
         <Typography variant="h3" component="h1" gutterBottom sx={{ fontWeight: 'bold' }}>
-          最高のサークル体験を、
+          あなたのサークル活動を
           <br />
-          ここから始めよう。
+          もっと便利に
         </Typography>
         <Typography variant="h6" color="text.secondary" paragraph>
-          クルカツは、大学のサークル探しを最高に効率化するアプリです。
+          クルカツは、大学生のサークル活動をサポートします。
           <br />
-          アプリのリリースに先立ち、あなたのサークル情報を先行登録して、誰よりも早く新入生にアピールしませんか？
+          アプリのリリースに先立ち、事前登録をお願いします！
         </Typography>
 
         <Box sx={{ my: 4, textAlign: 'left', display: 'inline-block' }}>
@@ -66,7 +66,7 @@ const Home = () => {
               <ListItemIcon>
                 <CheckCircleIcon color="primary" />
               </ListItemIcon>
-              <ListItemText primary="リリースと同時に多くの新入生の目に留まる" />
+              <ListItemText primary="事前登録サークルには限定特典あり！" />
             </ListItem>
             <ListItem>
               <ListItemIcon>
@@ -78,20 +78,19 @@ const Home = () => {
               <ListItemIcon>
                 <CheckCircleIcon color="primary" />
               </ListItemIcon>
-              <ListItemText primary="簡単なステップで登録完了、すぐに始められる" />
+              <ListItemText primary="アプリリリース時に多くの新入生の目に留まる" />
             </ListItem>
           </List>
         </Box>
 
         <Box mt={4}>
-          <Button 
-            variant="contained" 
-            color="primary" 
-            size="large" 
+          <Button
+            variant="contained"
+            size="large"
             onClick={handleGetStarted}
-            sx={{ fontWeight: 'bold', px: 6, py: 1.5 }}
+            sx={{ px: 4, py: 2, fontSize: '1.2rem' }}
           >
-            {currentUser ? 'プロフィールを編集' : '今すぐ無料で登録する'}
+            {currentUser ? 'サークル情報を編集' : '今すぐ始める'}
           </Button>
         </Box>
       </Paper>
